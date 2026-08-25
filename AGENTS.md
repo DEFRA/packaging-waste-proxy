@@ -5,6 +5,7 @@
 - Do not use the `Async` suffix for asynchronous methods.
 - Add a blank line before a return statement.
 - Use constants for values used more than once; inline values used once.
+- Prefer `nameof(EnumType.Member)` over `.ToString()` when converting a known enum member to text.
 - Declare variables as close to their point of use as possible.
 - Use camelCase for constants declared within methods.
 - Name expressions with `x => x.` syntax where possible.

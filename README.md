@@ -7,7 +7,13 @@ See the [architecture and follow-up review](docs/architecture-and-follow-up.md) 
 ## Behaviour
 
 - `GET /health` is handled by this service and returns `200 OK` with `{ "message": "success" }`.
+- `GET /health/all` checks every configured downstream destination's `/health` endpoint. It returns `200 OK` only
+  when they are all healthy, otherwise `503 Service Unavailable` with the per-destination result.
 - The container listens on `PORT` (default `8085`) and includes `curl` for the CDP platform health check.
+
+`/health/all` is protected by an exact, non-empty `X-Health-Check-Token` API-key header. The key defaults to empty
+(which rejects every request), so deployments must configure it with the `Health__All__ApiKey` environment variable.
+`Health__All__DownstreamTimeoutMilliseconds` optionally overrides the five-second downstream timeout.
 
 ## Permitted-route design
 
@@ -85,6 +91,7 @@ Obligations service, including a trailing slash.
 
 ```text
 ReverseProxy__Clusters__ManageRecyclingObligations__Destinations__Primary__Address=https://manage-recycling-obligations.production.internal/
+Health__All__ApiKey=replace-with-a-secret-from-the-deployment-environment
 ```
 
 For example, the transform forwards the request below without the public routing prefix:

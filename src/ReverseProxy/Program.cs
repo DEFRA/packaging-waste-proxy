@@ -1,5 +1,6 @@
 using Defra.PackagingWasteProxy.ReverseProxy.Configuration;
 using Defra.PackagingWasteProxy.ReverseProxy.Utils;
+using Defra.PackagingWasteProxy.ReverseProxy.Utils.Health;
 using Defra.PackagingWasteProxy.ReverseProxy.Utils.Logging;
 using Elastic.CommonSchema.Serilog;
 using Serilog;
@@ -13,6 +14,7 @@ try
     builder.Configuration.AddEnvironmentVariables();
     builder.Services.AddCustomTrustStore();
     builder.ConfigureLoggingAndTracing();
+    builder.Services.AddAggregateHealth(builder.Configuration);
 
     var port = builder.Configuration["PORT"];
     if (int.TryParse(port, out var configuredPort))
@@ -27,7 +29,7 @@ try
     var app = builder.Build();
 
     app.UseHeaderPropagation();
-    app.MapGet("/health", () => Results.Ok(new { message = "success" })).WithOrder(-1);
+    app.MapAggregateHealth();
     app.MapReverseProxy();
 
     await app.RunAsync();

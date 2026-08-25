@@ -171,11 +171,17 @@ Use `packaging-waste-proxy` as the CDP proxy service for the Packaging Waste log
 
 The service retains the evaluated routing and testing behaviour. Before production rollout, create the `packaging-waste-proxy` service configuration in `cdp-app-config` for every required environment, including the explicit Manage Recycling Obligations destination. Then review and prioritise the following outcome items with the service and platform teams.
 
-### Enhancements to consider
+### Aggregate downstream health
 
-An extended `/health/all` endpoint could report downstream availability while retaining the existing local `/health`
-contract. Alternatively, a background process could continuously check downstream availability and publish custom
-metrics or alarms. These would be useful enhancements, but are not prerequisites for adopting the routing pattern.
+`GET /health/all` checks every configured downstream destination's `/health` endpoint concurrently and returns a
+per-destination report. It returns `200 OK` only when all destinations are healthy; otherwise it returns
+`503 Service Unavailable`. The existing local `GET /health` CDP contract remains independent of downstream
+availability.
+
+The aggregate endpoint requires an exact, non-empty `X-Health-Check-Token` API-key header. Its key is configured as
+`Health:All:ApiKey` in application configuration and is expected to be supplied by the
+`Health__All__ApiKey` environment variable in deployments. A background process that continuously checks downstream
+availability and publishes custom metrics or alarms remains a possible later enhancement.
 
 ### Convention-based downstream destinations
 

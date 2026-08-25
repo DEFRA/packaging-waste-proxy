@@ -11,6 +11,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       PORT: 8085
+      Health__All__ApiKey: ApiKey
       ReverseProxy__Clusters__ManageRecyclingObligations__Destinations__Primary__Address: http://downstream:8080/
     depends_on:
       downstream:
