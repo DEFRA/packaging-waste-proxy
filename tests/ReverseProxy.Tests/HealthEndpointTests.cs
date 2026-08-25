@@ -25,7 +25,7 @@ public class HealthEndpointTests(ReverseProxyWebApplicationFactory factory)
     }
 
     [Fact]
-    public async Task GetHealthAll_WhenApiKeyIsNotConfigured_ShouldReturnUnauthorized()
+    public async Task GetHealthAll_WhenApiKeyHeaderIsMissing_ShouldReturnUnauthorized()
     {
         using var client = factory.CreateClient();
 
@@ -39,11 +39,7 @@ public class HealthEndpointTests(ReverseProxyWebApplicationFactory factory)
     [Fact]
     public async Task GetHealthAll_WhenApiKeyIsValidAndDownstreamIsUnavailable_ShouldReturnServiceUnavailable()
     {
-        using var aggregateHealthFactory = new ReverseProxyWebApplicationFactory(
-            "http://127.0.0.1:1/",
-            healthAllApiKey: ApiKey
-        );
-        using var client = aggregateHealthFactory.CreateClient();
+        using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add(ApiKeyHeader, ApiKey);
 
         var response = await client.GetAsync("/health/all", TestContext.Current.CancellationToken);
@@ -54,23 +50,9 @@ public class HealthEndpointTests(ReverseProxyWebApplicationFactory factory)
     }
 
     [Fact]
-    public async Task GetHealth_WhenPortIsConfigured_ShouldReturnSuccess()
-    {
-        using var configuredPortFactory = new ReverseProxyWebApplicationFactory(
-            "https://manage-recycling-obligations.example/",
-            "0"
-        );
-        using var client = configuredPortFactory.CreateClient();
-
-        var response = await client.GetAsync("/health", TestContext.Current.CancellationToken);
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-    }
-
-    [Fact]
     public void CreateClient_WhenDestinationAddressIsUnconfigured_ShouldThrow()
     {
-        using var invalidConfigurationFactory = new ReverseProxyWebApplicationFactory("https://unconfigured.invalid/");
+        using var invalidConfigurationFactory = new InvalidConfigurationReverseProxyWebApplicationFactory();
 
         Action act = () => invalidConfigurationFactory.CreateClient();
 

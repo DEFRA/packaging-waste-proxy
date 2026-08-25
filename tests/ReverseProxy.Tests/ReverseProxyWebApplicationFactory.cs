@@ -1,41 +1,20 @@
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Defra.PackagingWasteProxy.ReverseProxy.Tests;
 
 public sealed class ReverseProxyWebApplicationFactory : WebApplicationFactory<Program>
 {
-    private const string DestinationAddressEnvironmentVariable =
-        "ReverseProxy__Clusters__ManageRecyclingObligations__Destinations__Primary__Address";
-    private const string HealthAllApiKeyEnvironmentVariable = "Health__All__ApiKey";
-    private const string PortEnvironmentVariable = "PORT";
-
-    private readonly string? _previousDestinationAddress;
-    private readonly string? _previousHealthAllApiKey;
-    private readonly string? _previousPort;
-
-    public ReverseProxyWebApplicationFactory()
-        : this("https://manage-recycling-obligations.example/") { }
-
-    internal ReverseProxyWebApplicationFactory(
-        string destinationAddress,
-        string? port = null,
-        string? healthAllApiKey = null
-    )
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        _previousDestinationAddress = Environment.GetEnvironmentVariable(DestinationAddressEnvironmentVariable);
-        _previousHealthAllApiKey = Environment.GetEnvironmentVariable(HealthAllApiKeyEnvironmentVariable);
-        _previousPort = Environment.GetEnvironmentVariable(PortEnvironmentVariable);
-        Environment.SetEnvironmentVariable(DestinationAddressEnvironmentVariable, destinationAddress);
-        Environment.SetEnvironmentVariable(HealthAllApiKeyEnvironmentVariable, healthAllApiKey);
-        Environment.SetEnvironmentVariable(PortEnvironmentVariable, port);
+        builder.UseEnvironment("IntegrationTests");
     }
+}
 
-    protected override void Dispose(bool disposing)
+public sealed class InvalidConfigurationReverseProxyWebApplicationFactory : WebApplicationFactory<Program>
+{
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        Environment.SetEnvironmentVariable(DestinationAddressEnvironmentVariable, _previousDestinationAddress);
-        Environment.SetEnvironmentVariable(HealthAllApiKeyEnvironmentVariable, _previousHealthAllApiKey);
-        Environment.SetEnvironmentVariable(PortEnvironmentVariable, _previousPort);
-
-        base.Dispose(disposing);
+        builder.UseEnvironment("InvalidConfiguration");
     }
 }
