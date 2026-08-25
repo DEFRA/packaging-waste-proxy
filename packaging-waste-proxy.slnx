@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ReverseProxy/ReverseProxy.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ReverseProxy.IntegrationTests/ReverseProxy.IntegrationTests.csproj" />
+    <Project Path="tests/ReverseProxy.Tests/ReverseProxy.Tests.csproj" />
+  </Folder>
+</Solution>
