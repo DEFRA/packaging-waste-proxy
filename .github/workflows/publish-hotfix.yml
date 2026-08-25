@@ -8,11 +8,6 @@ concurrency:
   cancel-in-progress: false
   queue: max
 
-permissions:
-  id-token: write
-  contents: write
-  pull-requests: write
-
 env:
   AWS_REGION: eu-west-2
   AWS_ACCOUNT_ID: '094954420758'
@@ -21,6 +16,10 @@ jobs:
   build-and-publish-hotfix:
     name: Build and publish packaging-waste-proxy hot fix
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
     steps:
       - name: Check out code
         uses: actions/checkout@v7
@@ -56,5 +55,8 @@ jobs:
     name: SonarCloud scan
     uses: ./.github/workflows/sonarcloud.yml
     needs: build-and-publish-hotfix
+    permissions:
+      contents: read
+      pull-requests: write
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

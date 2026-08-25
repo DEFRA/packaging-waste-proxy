@@ -25,7 +25,12 @@ RUN dotnet restore src/ReverseProxy/ReverseProxy.csproj
 COPY src/ReverseProxy src/ReverseProxy
 
 RUN dotnet csharpier check .
-RUN dotnet publish src/ReverseProxy/ReverseProxy.csproj -c Release --no-restore --warnaserror -o /app/publish /p:UseAppHost=false
+RUN dotnet publish src/ReverseProxy/ReverseProxy.csproj \
+    -c Release \
+    --no-restore \
+    --warnaserror \
+    -o /app/publish \
+    /p:UseAppHost=false
 
 # Final production image
 FROM base AS final
