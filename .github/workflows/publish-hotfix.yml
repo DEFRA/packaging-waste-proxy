@@ -52,3 +52,9 @@ jobs:
         uses: DEFRA/cdp-build-action/build-hotfix@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+  sonarcloud-scan:
+    name: SonarCloud scan
+    uses: ./.github/workflows/sonarcloud.yml
+    needs: build-and-publish-hotfix
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

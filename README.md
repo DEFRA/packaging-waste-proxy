@@ -169,3 +169,9 @@ Start the Compose environment before running the routing integration tests:
 ```sh
 dotnet test tests/ReverseProxy.IntegrationTests/ReverseProxy.IntegrationTests.csproj --no-restore
 ```
+
+## Code quality
+
+SonarCloud analysis runs after the validation, publish, and hot-fix jobs. It uses the repository `SONAR_TOKEN` secret
+and reports coverage from both the unit and routing integration test projects to the
+[Packaging Waste Proxy project](https://sonarcloud.io/project/overview?id=DEFRA_packaging-waste-proxy).

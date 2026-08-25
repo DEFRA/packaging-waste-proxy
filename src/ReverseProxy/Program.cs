@@ -36,7 +36,7 @@ catch (Exception ex)
 {
     Log.Fatal(ex, "Application start-up failed");
 
-    throw;
+    throw new InvalidOperationException("Application start-up failed.", ex);
 }
 finally
 {
