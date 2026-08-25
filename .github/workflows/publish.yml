@@ -1,4 +1,4 @@
-name: Publish
+name: Publish packaging-waste-proxy
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 concurrency:
-  group: $${{ github.workflow }}
+  group: ${{ github.workflow }}
   cancel-in-progress: false
   queue: max
 
@@ -20,32 +20,36 @@ env:
   AWS_ACCOUNT_ID: '094954420758'
 
 jobs:
-  build:
+  build-and-publish:
     if: github.run_number != 1
-    name: CDP-build-workflow
+    name: Build and publish packaging-waste-proxy
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
         uses: actions/checkout@v7
-
-      - name: Test code and Create Test Coverage Reports
-        uses: actions/setup-node@v7
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v5
         with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: |
-          npm ci
-          npm run build:frontend
-          npm test
-
-      - name: Build and Publish
+          dotnet-version: 10.0.x
+      - name: Restore, format, and build
+        run: |
+          dotnet tool restore
+          dotnet restore packaging-waste-proxy.slnx
+          dotnet csharpier check .
+          dotnet build packaging-waste-proxy.slnx --no-restore --warnaserror
+      - name: Run unit tests
+        run: dotnet test tests/ReverseProxy.Tests/ReverseProxy.Tests.csproj --no-restore
+      - name: Start routing test environment
+        run: docker compose up --build -d --wait
+      - name: Run routing integration tests
+        run: dotnet test tests/ReverseProxy.IntegrationTests/ReverseProxy.IntegrationTests.csproj --no-restore
+      - name: Show Compose logs
+        if: always()
+        run: docker compose logs
+      - name: Stop routing test environment
+        if: always()
+        run: docker compose down -v --remove-orphans
+      - name: Publish image
         uses: DEFRA/cdp-build-action/build@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-
-#      - name: SonarCloud Scan
-#        uses: SonarSource/sonarqube-scan-action@v5.3.1 #  (or check latest version on https://github.com/marketplace/actions/official-sonarqube-scan)
-#        continue-on-error: true
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

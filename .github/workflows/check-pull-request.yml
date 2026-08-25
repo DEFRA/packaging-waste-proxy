@@ -1,4 +1,4 @@
-name: Check Pull Request
+name: Check packaging-waste-proxy pull request
 
 on:
   pull_request:
@@ -6,43 +6,40 @@ on:
       - main
     types:
       - opened
+      - edited
       - reopened
       - synchronize
       - ready_for_review
+  workflow_dispatch:
 
 jobs:
-  pr-validator:
-    name: Run Pull Request Checks
+  validate:
+    name: Validate packaging-waste-proxy
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Check out code
         uses: actions/checkout@v7
-
-      - name: Test code and Create Test Coverage Reports
-        uses: actions/setup-node@v7
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v5
         with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - name: Security audit
-        run: npm run security-audit
-
-      - run: |
-          npm ci
-          npm run build:frontend
-          npm run format:check
-          npm run lint
-          npm test
-
-      - name: Test Docker Image Build
+          dotnet-version: 10.0.x
+      - name: Restore dependencies and tools
         run: |
-          set +e
-          docker build --no-cache --tag cdp-node-frontend-template .
-          exit $?
-
-#      - name: SonarCloud Scan
-#        if: github.actor != 'dependabot[bot]'
-#        uses: SonarSource/sonarqube-scan-action@v5.3.1 #  (or check latest version on https://github.com/marketplace/actions/official-sonarqube-scan)
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          dotnet tool restore
+          dotnet restore packaging-waste-proxy.slnx
+      - name: Check formatting
+        run: dotnet csharpier check .
+      - name: Build
+        run: dotnet build packaging-waste-proxy.slnx --no-restore --warnaserror
+      - name: Run unit tests
+        run: dotnet test tests/ReverseProxy.Tests/ReverseProxy.Tests.csproj --no-restore
+      - name: Start routing test environment
+        run: docker compose up --build -d --wait
+      - name: Run routing integration tests
+        run: dotnet test tests/ReverseProxy.IntegrationTests/ReverseProxy.IntegrationTests.csproj --no-restore
+      - name: Show Compose logs
+        if: always()
+        run: docker compose logs
+      - name: Stop routing test environment
+        if: always()
+        run: docker compose down -v --remove-orphans

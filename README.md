@@ -1,221 +1,171 @@
-# packaging-waste-proxy
+# Packaging waste proxy
 
-[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=DEFRA_packaging-waste-proxy&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=DEFRA_packaging-waste-proxy)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=DEFRA_packaging-waste-proxy&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=DEFRA_packaging-waste-proxy)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=DEFRA_packaging-waste-proxy&metric=coverage)](https://sonarcloud.io/summary/new_code?id=DEFRA_packaging-waste-proxy)
+A .NET 10 YARP reverse proxy prepared for the CDP build and deployment approach.
 
-Core delivery platform Node.js Frontend Template.
+See the [architecture and follow-up review](docs/architecture-and-follow-up.md) for the evidence, recommendation, and next steps.
 
-- [Requirements](#requirements)
-  - [Node.js](#nodejs)
-- [Server-side Caching](#server-side-caching)
-- [Redis](#redis)
-- [Local Development](#local-development)
-  - [Setup](#setup)
-  - [Development](#development)
-  - [Production](#production)
-  - [Npm scripts](#npm-scripts)
-  - [Update dependencies](#update-dependencies)
-  - [Formatting](#formatting)
-    - [Windows prettier issue](#windows-prettier-issue)
-- [Docker](#docker)
-  - [Development image](#development-image)
-  - [Production image](#production-image)
-  - [Docker Compose](#docker-compose)
-  - [Dependabot](#dependabot)
-  - [SonarCloud](#sonarcloud)
-- [Licence](#licence)
-  - [About the licence](#about-the-licence)
+## Behaviour
 
-## Requirements
+- `GET /health` is handled by this service and returns `200 OK` with `{ "message": "success" }`.
+- The container listens on `PORT` (default `8085`) and includes `curl` for the CDP platform health check.
 
-### Node.js
+## Permitted-route design
 
-Please install Node Version Manager [nvm](https://github.com/creationix/nvm)
+The proxy is a permit list: a request may be sent only to a downstream service with an explicitly configured
+public path. The first known mapping is **Manage Recycling Obligations**.
 
-To use the correct version of Node.js for this application, via nvm:
+```mermaid
+flowchart LR
+    user["User"] --> ingress["Ingress\nreport-packaging.defra.gov.uk"]
 
-```bash
-cd packaging-waste-proxy
-nvm use
+    subgraph public["Public zone"]
+        proxy["YARP proxy"]
+        routes[("Permitted route configuration")]
+        health["GET /health"]
+    end
+
+    subgraph private["Private zone"]
+        obligations["Manage Recycling Obligations"]
+    end
+
+    ingress --> proxy
+    routes -. "permits" .-> proxy
+    proxy -->|"/manage-recycling-obligations/..."| obligations
+    proxy --> health
 ```
 
-## Server-side Caching
+Ingress is responsible for mapping the public domain to this proxy deployment, so YARP does not currently match on
+`Hosts`. This keeps public hostnames out of application configuration; only each environment's downstream address
+varies. If a future deployment serves more than one public domain, add `Hosts` back to every permitted YARP route.
 
-We use Catbox for server-side caching. By default the service will use CatboxRedis when deployed and CatboxMemory for
-local development.
-You can override the default behaviour by setting the `SESSION_CACHE_ENGINE` environment variable to either `redis` or
-`memory`.
+### Manage Recycling Obligations
 
-Please note: CatboxMemory (`memory`) is _not_ suitable for production use! The cache will not be shared between each
-instance of the service and it will not persist between restarts.
+The agreed public prefix is `/manage-recycling-obligations`. The YARP configuration is:
 
-## Redis
-
-Redis is an in-memory key-value store. Every instance of a service has access to the same Redis key-value store similar
-to how services might have a database (or MongoDB). All frontend services are given access to a namespaced prefixed that
-matches the service name. e.g. `my-service` will have access to everything in Redis that is prefixed with `my-service`.
-
-If your service does not require a session cache to be shared between instances or if you don't require Redis, you can
-disable setting `SESSION_CACHE_ENGINE=false` or changing the default value in `src/config/index.js`.
-
-## Proxy
-
-We are using forward-proxy which is set up by default. To make use of this: `import { fetch } from 'undici'` then
-because of the `setGlobalDispatcher(new ProxyAgent(proxyUrl))` calls will use the ProxyAgent Dispatcher
-
-If you are not using Wreck, Axios or Undici or a similar http that uses `Request`. Then you may have to provide the
-proxy dispatcher:
-
-To add the dispatcher to your own client:
-
-```javascript
-import { ProxyAgent } from 'undici'
-
-return await fetch(url, {
-  dispatcher: new ProxyAgent({
-    uri: proxyUrl,
-    keepAliveTimeout: 10,
-    keepAliveMaxTimeout: 10
-  })
-})
+```json
+{
+  "ReverseProxy": {
+    "Routes": {
+      "ManageRecyclingObligations": {
+        "ClusterId": "ManageRecyclingObligations",
+        "Match": {
+          "Path": "/manage-recycling-obligations/{**catch-all}"
+        },
+        "Transforms": [
+          {
+            "X-Forwarded": "Set",
+            "Prefix": "Off"
+          },
+          {
+            "PathRemovePrefix": "/manage-recycling-obligations"
+          },
+          {
+            "RequestHeader": "X-Forwarded-Prefix",
+            "Set": "/manage-recycling-obligations"
+          }
+        ]
+      }
+    },
+    "Clusters": {
+      "ManageRecyclingObligations": {
+        "Destinations": {
+          "Primary": {
+            "Address": "https://unconfigured.invalid/"
+          }
+        }
+      }
+    }
+  }
+}
 ```
 
-## Local Development
+`https://unconfigured.invalid/` is a fail-closed placeholder. Startup validation prevents the proxy from running
+until every destination has been overridden with the full base address of the relevant environment's Manage Recycling
+Obligations service, including a trailing slash.
 
-### Setup
-
-Install application dependencies:
-
-```bash
-npm install
+```text
+ReverseProxy__Clusters__ManageRecyclingObligations__Destinations__Primary__Address=https://manage-recycling-obligations.production.internal/
 ```
 
-### Git hooks
+For example, the transform forwards the request below without the public routing prefix:
 
-Install git hooks (optional)
-
-```bash
-npm run git:hooks
+```text
+Public request:     POST /manage-recycling-obligations/returns?year=2026
+Downstream request: POST https://manage-recycling-obligations.production.internal/returns?year=2026
+                    X-Forwarded-Prefix: /manage-recycling-obligations
 ```
 
-### Development
+`X-Forwarded-Prefix` tells the downstream service which public prefix the proxy removed. YARP's default prefix
+transform is disabled for this route because it takes its value from `PathBase`, which is empty here and would remove
+the explicit header. The other standard `X-Forwarded-*` headers remain enabled. The downstream should trust forwarded
+headers only when it can be reached through the proxy or another trusted private-network component.
 
-To run the application in `development` mode run:
+The service assumes ingress is the only route to the proxy. Under that assumption, a client-supplied
+`X-Forwarded-Host`, `X-Forwarded-Proto`, or `X-Forwarded-Prefix` is not passed through unchanged: YARP sets the host
+and protocol headers from the request it receives, and this route sets the prefix to
+`/manage-recycling-obligations`. Ingress must enforce the expected host name because YARP derives
+`X-Forwarded-Host` from the incoming `Host` header.
 
-```bash
-npm run dev
+No `Methods` constraint is configured, so the permitted path accepts every HTTP method, including `POST`. The
+`{**catch-all}` path segment permits every suffix beneath `/manage-recycling-obligations`; use additional exact
+routes with `Methods` restrictions if individual downstream operations need a narrower allow-list. Paths that do not
+match a permitted route return `404` from the proxy without reaching a downstream service.
+
+## Run locally
+
+```sh
+dotnet restore packaging-waste-proxy.slnx
+dotnet run --project src/ReverseProxy
 ```
 
-### Production
+Then check the local endpoint:
 
-To mimic the application running in `production` mode locally run:
-
-```bash
-npm start
+```sh
+curl http://localhost:8085/health
 ```
 
-### Npm scripts
+## Compose demonstration
 
-All available Npm scripts can be seen in [package.json](./package.json)
-To view them in your command line run:
-
-```bash
-npm run
+```sh
+docker compose up --build -d --wait
 ```
 
-### Update dependencies
+Compose starts the proxy and one WireMock downstream. The proxy's destination is overridden to `http://downstream:8080/`;
+WireMock returns the expected canned response for `POST /returns?year=2026`. This demonstrates that the proxy removed
+the public prefix before forwarding and supplied it in `X-Forwarded-Prefix`.
 
-To update dependencies use [npm-check-updates](https://github.com/raineorshine/npm-check-updates):
-
-> The following script is a good start. Check out all the options on
-> the [npm-check-updates](https://github.com/raineorshine/npm-check-updates)
-
-```bash
-ncu --interactive --format group
+```sh
+curl --fail --request POST 'http://localhost:8085/manage-recycling-obligations/returns?year=2026'
+curl --include http://localhost:8085/not-permitted
 ```
 
-### Formatting
+The first command returns the WireMock response below. The second returns `404 Not Found`, even though WireMock has a
+deliberate sentry response for `/not-permitted`; this proves the proxy did not forward the unpermitted path.
 
-#### Windows prettier issue
-
-If you are having issues with formatting of line breaks on Windows update your global git config by running:
-
-```bash
-git config --global core.autocrlf false
+```json
+{
+  "method": "POST",
+  "path": "/returns",
+  "query": "?year=2026"
+}
 ```
 
-## Docker
+Stop the environment when finished:
 
-### Development image
-
-> [!TIP]
-> For Apple Silicon users, you may need to add `--platform linux/amd64` to the `docker run` command to ensure
-> compatibility fEx: `docker build --platform=linux/arm64 --no-cache --tag packaging-waste-proxy`
-
-Build:
-
-```bash
-docker build --target development --no-cache --tag packaging-waste-proxy:development .
+```sh
+docker compose down -v --remove-orphans
 ```
 
-Run:
+## Tests
 
-```bash
-docker run -p 3000:3000 packaging-waste-proxy:development
+Run the startup-validation unit tests without Docker:
+
+```sh
+dotnet test tests/ReverseProxy.Tests/ReverseProxy.Tests.csproj --no-restore
 ```
 
-### Production image
+Start the Compose environment before running the routing integration tests:
 
-Build:
-
-```bash
-docker build --no-cache --tag packaging-waste-proxy .
+```sh
+dotnet test tests/ReverseProxy.IntegrationTests/ReverseProxy.IntegrationTests.csproj --no-restore
 ```
-
-Run:
-
-```bash
-docker run -p 3000:3000 packaging-waste-proxy
-```
-
-### Docker Compose
-
-A local environment with:
-
-- Floci (replacing Localstack) for AWS services (S3, SQS)
-- Redis
-- MongoDB
-- This service.
-- A commented out backend example.
-
-```bash
-docker compose up --build -d
-```
-
-### Dependabot
-
-We have added an example dependabot configuration file to the repository. You can enable it by renaming
-the [.github/example.dependabot.yml](.github/example.dependabot.yml) to `.github/dependabot.yml`
-
-### SonarCloud
-
-Instructions for setting up SonarCloud can be found in [sonar-project.properties](./sonar-project.properties).
-
-## Licence
-
-THIS INFORMATION IS LICENSED UNDER THE CONDITIONS OF THE OPEN GOVERNMENT LICENCE found at:
-
-<http://www.nationalarchives.gov.uk/doc/open-government-licence/version/3>
-
-The following attribution statement MUST be cited in your products and applications when using this information.
-
-> Contains public sector information licensed under the Open Government license v3
-
-### About the licence
-
-The Open Government Licence (OGL) was developed by the Controller of Her Majesty's Stationery Office (HMSO) to enable
-information providers in the public sector to license the use and re-use of their information under a common open
-licence.
-
-It is designed to encourage use and re-use of information freely and flexibly, with only a few conditions.

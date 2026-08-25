@@ -1,51 +1,42 @@
-ARG PARENT_VERSION=3.0.5-node24.14.1
-ARG PORT=3000
-ARG PORT_DEBUG=9229
+# Base runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+WORKDIR /app
 
-FROM defradigital/node-development:${PARENT_VERSION} AS development
-ARG PARENT_VERSION
-LABEL uk.gov.defra.ffc.parent-image=defradigital/node-development:${PARENT_VERSION}
-
-ENV TZ="Europe/London"
-
-ARG PORT
-ARG PORT_DEBUG
-ENV PORT=${PORT}
-EXPOSE ${PORT} ${PORT_DEBUG}
-
-COPY --chown=node:node --chmod=755 package*.json ./
-RUN npm install
-COPY --chown=node:node --chmod=755 . .
-RUN npm run build:frontend
-
-CMD [ "npm", "run", "docker:dev" ]
-
-FROM development AS production_build
-
-ENV NODE_ENV=production
-
-RUN npm run build:frontend
-
-FROM defradigital/node:${PARENT_VERSION} AS production
-ARG PARENT_VERSION
-LABEL uk.gov.defra.ffc.parent-image=defradigital/node:${PARENT_VERSION}
-
-ENV TZ="Europe/London"
-
-# Add curl to template.
-# CDP PLATFORM HEALTHCHECK REQUIREMENT
+# CDP platform health checks use curl.
 USER root
-RUN apk add --no-cache curl
-USER node
+RUN apt update && \
+    apt install curl -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-COPY --from=production_build /home/node/package*.json ./
-COPY --from=production_build /home/node/src ./src/
-COPY --from=production_build /home/node/.public/ ./.public/
+# Build stage image
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
 
-RUN npm ci --omit=dev
+COPY .config/dotnet-tools.json .config/dotnet-tools.json
+COPY .csharpierrc .csharpierrc
+COPY .editorconfig .editorconfig
+COPY Directory.Build.props Directory.Build.props
+COPY src/ReverseProxy/ReverseProxy.csproj src/ReverseProxy/ReverseProxy.csproj
 
-ARG PORT
-ENV PORT=${PORT}
-EXPOSE ${PORT}
+RUN dotnet tool restore
+RUN dotnet restore src/ReverseProxy/ReverseProxy.csproj
 
-CMD [ "node", "src" ]
+COPY src/ReverseProxy src/ReverseProxy
+
+RUN dotnet csharpier check .
+RUN dotnet publish src/ReverseProxy/ReverseProxy.csproj -c Release --no-restore --warnaserror -o /app/publish /p:UseAppHost=false
+
+# Final production image
+FROM base AS final
+WORKDIR /app
+
+COPY --from=build /app/publish .
+
+ENV ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
+ENV ASPNETCORE_HTTP_PORTS=
+ENV PORT=8085
+
+EXPOSE 8085
+USER $APP_UID
+ENTRYPOINT ["dotnet", "ReverseProxy.dll"]
