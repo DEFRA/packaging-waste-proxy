@@ -4,21 +4,18 @@ internal static class EndpointRouteBuilderExtensions
 {
     public static IEndpointRouteBuilder MapShuttering(
         this IEndpointRouteBuilder endpoints,
-        ShutteringOptions options,
+        IEnumerable<ShutteredRoute> shutteredRoutes,
         ShutteringPageRenderer pageRenderer
     )
     {
-        foreach (var page in options.Paths.Where(x => x.Shuttered))
+        foreach (var route in shutteredRoutes)
         {
-            var path = page.Path!;
             endpoints
-                .Map(GetRoutePattern(path), context => pageRenderer.Write(context, page))
-                .WithDisplayName($"Shuttering: {path}")
+                .Map(route.MatchPath, context => pageRenderer.Write(context, route))
+                .WithDisplayName($"Shuttering: {route.RouteId}")
                 .WithOrder(-1);
         }
 
         return endpoints;
     }
-
-    private static string GetRoutePattern(string path) => path == "/" ? "/{**catchAll}" : $"{path}/{{**catchAll}}";
 }

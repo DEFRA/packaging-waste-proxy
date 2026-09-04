@@ -17,33 +17,40 @@ See the [architecture and follow-up review](docs/architecture-and-follow-up.md) 
 
 ## Shuttering a path
 
-The proxy can temporarily replace a public path with a locally served GOV.UK holding page. A shuttered path and every
-path beneath it return `503 Service Unavailable`, `text/html`, and `Cache-Control: no-store`; the request is not sent
-to YARP or its downstream service. The most specific shuttered path wins. `/health` and `/health/all` cannot be
-shuttered, preserving the CDP health-check contract.
+The proxy can temporarily replace a configured YARP route with a locally served GOV.UK holding page. Every request
+that matches a shuttered route, including pages and assets below its public path, returns `503 Service Unavailable`,
+`text/html`, and `Cache-Control: no-store`; the request is not sent to YARP or its downstream service. There is no
+redirect. `/health` and `/health/all` cannot be shuttered, preserving the CDP health-check contract.
 
-Each page is a `Shuttering:Paths` entry. Its only setting is whether its path is shuttered. The initial Manage
-Recycling Obligations entry is disabled by default:
+Shuttering is configured on the YARP route itself, so its `Match:Path` remains the single source of truth for the
+public path. Set the route's `Metadata:Shuttered` value to `true` or `false`. The initial Manage Recycling Obligations
+route is disabled by default:
 
 ```json
 {
-  "Shuttering": {
-    "Paths": [
-      {
-        "Path": "/manage-recycling-obligations",
-        "Shuttered": false
+  "ReverseProxy": {
+    "Routes": {
+      "ManageRecyclingObligations": {
+        "ClusterId": "ManageRecyclingObligations",
+        "Match": {
+          "Path": "/manage-recycling-obligations/{**catch-all}"
+        },
+        "Metadata": {
+          "Shuttered": false
+        }
       }
-    ]
+    }
   }
 }
 ```
 
-The body comes from an HTML fragment whose filename is derived from the configured path. For example,
-`/manage-recycling-obligations` uses
+The holding-page body comes from an HTML fragment whose filename is derived from the route's `ClusterId`, converted
+to kebab case. For example, `ManageRecyclingObligations` uses
 [`manage-recycling-obligations.html`](src/ReverseProxy/Shuttering/Pages/manage-recycling-obligations.html), which is
-inserted inside the shared GOV.UK page shell. Nested paths retain their directories, so `/example/service` uses
-`src/ReverseProxy/Shuttering/Pages/example/service.html`. The root path uses `index.html`. Every configured path must
-have its corresponding file when the proxy starts, including when it is not shuttered.
+inserted inside the shared GOV.UK page shell. `Example_Service` would use
+`src/ReverseProxy/Shuttering/Pages/example-service.html`. A holding-page fragment is required only when its route is
+shuttered; startup fails if it is missing. This means the route ID, cluster ID, and public path are not duplicated in
+separate shuttering configuration.
 
 The fragment controls the whole central body and can use GOV.UK Frontend classes, as in `cdp-app-shuttering`:
 
@@ -58,11 +65,11 @@ The fragment controls the whole central body and can use GOV.UK Frontend classes
 </div>
 ```
 
-The existing path can be turned on with the deployment environment variable below; it remains off unless this is set
+The existing route can be turned on with the deployment environment variable below; it remains off unless this is set
 to `true`.
 
 ```text
-Shuttering__Paths__0__Shuttered=true
+ReverseProxy__Routes__ManageRecyclingObligations__Metadata__Shuttered=true
 ```
 
 ## Permitted-route design
@@ -106,6 +113,9 @@ The agreed public prefix is `/manage-recycling-obligations`. The YARP configurat
         "ClusterId": "ManageRecyclingObligations",
         "Match": {
           "Path": "/manage-recycling-obligations/{**catch-all}"
+        },
+        "Metadata": {
+          "Shuttered": false
         },
         "Transforms": [
           {

@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration;
 
 namespace Defra.PackagingWasteProxy.ReverseProxy.Tests;
 
@@ -27,11 +26,6 @@ public sealed class ShutteredReverseProxyWebApplicationFactory : WebApplicationF
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("IntegrationTests");
-        builder.ConfigureAppConfiguration(configurationBuilder =>
-            configurationBuilder.AddInMemoryCollection(
-                new Dictionary<string, string?> { ["Shuttering:Paths:0:Shuttered"] = "true" }
-            )
-        );
+        builder.UseEnvironment("ShutteringTests");
     }
 }

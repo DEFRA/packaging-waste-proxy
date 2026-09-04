@@ -6,7 +6,7 @@ internal sealed class ShutteringPageRenderer(IWebHostEnvironment environment)
 {
     private const string PageTitle = "Service Unavailable";
 
-    public async Task Write(HttpContext context, ShutteringPageOptions page)
+    public async Task Write(HttpContext context, ShutteredRoute route)
     {
         context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
         context.Response.ContentType = "text/html; charset=utf-8";
@@ -17,7 +17,7 @@ internal sealed class ShutteringPageRenderer(IWebHostEnvironment environment)
             return;
         }
 
-        var contentPath = ShutteringPageContentFiles.GetPath(environment.ContentRootPath, page.Path!);
+        var contentPath = ShutteringPageContentFiles.GetPath(environment.ContentRootPath, route.ClusterId);
         var content = await File.ReadAllTextAsync(contentPath, context.RequestAborted);
 
         await context.Response.WriteAsync(CreatePage(content), context.RequestAborted);

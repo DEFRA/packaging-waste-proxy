@@ -8,11 +8,17 @@ services:
     build: .
     ports:
       - "8085:8085"
+    volumes:
+      - ./tests/Shuttering/Pages/shuttered-proxy.html:/app/Shuttering/Pages/shuttered-proxy.html:ro
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       PORT: 8085
       Health__All__ApiKey: ApiKey
       ReverseProxy__Clusters__ManageRecyclingObligations__Destinations__Primary__Address: http://downstream:8080/
+      ReverseProxy__Routes__ShutteredProxy__ClusterId: ShutteredProxy
+      ReverseProxy__Routes__ShutteredProxy__Match__Path: "/shuttered-proxy/{**catch-all}"
+      ReverseProxy__Routes__ShutteredProxy__Metadata__Shuttered: true
+      ReverseProxy__Clusters__ShutteredProxy__Destinations__Primary__Address: http://downstream:8080/
     depends_on:
       downstream:
         condition: service_healthy

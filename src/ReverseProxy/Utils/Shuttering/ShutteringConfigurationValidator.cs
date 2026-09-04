@@ -2,17 +2,36 @@ namespace Defra.PackagingWasteProxy.ReverseProxy.Utils.Shuttering;
 
 internal static class ShutteringConfigurationValidator
 {
-    public static void Validate(IConfigurationSection shutteringConfiguration, string contentRootPath)
+    private const string ShutteredMetadataKey = "Shuttered";
+
+    public static IReadOnlyList<ShutteredRoute> Validate(
+        IConfigurationSection reverseProxyConfiguration,
+        string contentRootPath
+    )
     {
-        var configuredPaths = shutteringConfiguration.Get<ShutteringOptions>()?.Paths ?? [];
+        var clusters = reverseProxyConfiguration
+            .GetSection("Clusters")
+            .GetChildren()
+            .Select(x => x.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var shutteredRoutes = reverseProxyConfiguration
+            .GetSection("Routes")
+            .GetChildren()
+            .Select(GetShutteredRoute)
+            .OfType<ShutteredRoute>()
+            .ToArray();
 
-        foreach (var configuredPath in configuredPaths)
-            ValidatePath(configuredPath.Path);
+        foreach (var shutteredRoute in shutteredRoutes)
+        {
+            ValidateCluster(shutteredRoute, clusters);
+            ValidateMatchPath(shutteredRoute);
+        }
 
-        var missingContentFiles = configuredPaths
-            .Select(x => x.Path!)
-            .Where(path => !File.Exists(ShutteringPageContentFiles.GetPath(contentRootPath, path)))
-            .Select(ShutteringPageContentFiles.GetDisplayPath)
+        ValidateUniqueMatchPaths(shutteredRoutes);
+
+        var missingContentFiles = shutteredRoutes
+            .Where(route => !File.Exists(ShutteringPageContentFiles.GetPath(contentRootPath, route.ClusterId)))
+            .Select(route => ShutteringPageContentFiles.GetDisplayPath(route.ClusterId))
             .ToArray();
 
         if (missingContentFiles.Length > 0)
@@ -21,29 +40,91 @@ internal static class ShutteringConfigurationValidator
                 $"The following shuttering content files must exist: {string.Join(", ", missingContentFiles)}."
             );
         }
+
+        return shutteredRoutes;
     }
 
-    private static void ValidatePath(string? path)
+    private static ShutteredRoute? GetShutteredRoute(IConfigurationSection route)
     {
-        var configuredPath = path ?? string.Empty;
-        var hasUnsafeSegment = configuredPath.Split('/').Any(segment => segment is "." or "..");
+        var shuttered = route.GetSection("Metadata")[ShutteredMetadataKey];
+        if (string.IsNullOrWhiteSpace(shuttered))
+        {
+            return null;
+        }
+
+        if (!bool.TryParse(shuttered, out var isShuttered))
+        {
+            throw new InvalidOperationException(
+                $"The Shuttered metadata for reverse-proxy route '{route.Key}' must be true or false."
+            );
+        }
+
+        if (!isShuttered)
+        {
+            return null;
+        }
+
+        return new ShutteredRoute(
+            route.Key,
+            route["ClusterId"] ?? string.Empty,
+            route.GetSection("Match")["Path"] ?? string.Empty
+        );
+    }
+
+    private static void ValidateCluster(ShutteredRoute route, ISet<string> clusters)
+    {
+        if (
+            string.IsNullOrWhiteSpace(route.ClusterId)
+            || !route.ClusterId.All(character => char.IsAsciiLetterOrDigit(character) || character is '-' or '_')
+            || !clusters.Contains(route.ClusterId)
+        )
+        {
+            throw new InvalidOperationException(
+                $"Shuttered reverse-proxy route '{route.RouteId}' must reference an existing cluster with an ID containing only letters, digits, hyphens, or underscores."
+            );
+        }
+    }
+
+    private static void ValidateMatchPath(ShutteredRoute route)
+    {
+        var matchPath = route.MatchPath;
+        var firstSegment = matchPath.Split('/', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        var hasUnsafeSegment = matchPath.Split('/').Any(segment => segment is "." or "..");
         var isHealthPath =
-            configuredPath.Equals("/health", StringComparison.OrdinalIgnoreCase)
-            || configuredPath.StartsWith("/health/", StringComparison.OrdinalIgnoreCase);
+            matchPath.Equals("/health", StringComparison.OrdinalIgnoreCase)
+            || matchPath.StartsWith("/health/", StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(firstSegment)
+            || firstSegment.StartsWith('{');
 
         if (
-            string.IsNullOrWhiteSpace(configuredPath)
-            || !configuredPath.StartsWith('/')
-            || configuredPath.Contains('?', StringComparison.Ordinal)
-            || configuredPath.Contains('#', StringComparison.Ordinal)
-            || configuredPath.Contains('\\')
-            || (configuredPath.Length > 1 && configuredPath.EndsWith("/", StringComparison.Ordinal))
+            string.IsNullOrWhiteSpace(matchPath)
+            || !matchPath.StartsWith('/')
+            || matchPath.Contains('?', StringComparison.Ordinal)
+            || matchPath.Contains('#', StringComparison.Ordinal)
+            || matchPath.Contains('\\')
+            || (matchPath.Length > 1 && matchPath.EndsWith("/", StringComparison.Ordinal))
             || hasUnsafeSegment
             || isHealthPath
         )
         {
             throw new InvalidOperationException(
-                $"Shuttering path '{configuredPath}' must be an absolute path without a trailing slash, cannot include health endpoints, and cannot contain . or .. segments."
+                $"The Match:Path for shuttered reverse-proxy route '{route.RouteId}' must begin with a literal path segment, cannot include health endpoints, and cannot contain . or .. segments."
+            );
+        }
+    }
+
+    private static void ValidateUniqueMatchPaths(IReadOnlyCollection<ShutteredRoute> shutteredRoutes)
+    {
+        var duplicateMatchPaths = shutteredRoutes
+            .GroupBy(route => route.MatchPath, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToArray();
+
+        if (duplicateMatchPaths.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"The following shuttered reverse-proxy Match:Path values are duplicated: {string.Join(", ", duplicateMatchPaths)}."
             );
         }
     }
