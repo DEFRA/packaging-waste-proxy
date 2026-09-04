@@ -78,6 +78,26 @@ public class ShutteringConfigurationValidatorTests
         act.Should().Throw<InvalidOperationException>().WithMessage("*must be true or false*");
     }
 
+    [Fact]
+    public void AppSettingsRoutes_ShouldAllHaveHoldingPageContentFiles()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddJsonFile(Path.Combine(ContentRootPath, "appsettings.json"))
+            .Build();
+        var routes = configuration.GetSection("ReverseProxy:Routes").GetChildren().ToArray();
+        var missingContentFiles = routes
+            .Select(route => new { RouteId = route.Key, ClusterId = route["ClusterId"] })
+            .Where(route =>
+                string.IsNullOrWhiteSpace(route.ClusterId)
+                || !File.Exists(ShutteringPageContentFiles.GetPath(ContentRootPath, route.ClusterId))
+            )
+            .Select(route => route.RouteId)
+            .ToArray();
+
+        routes.Should().NotBeEmpty();
+        missingContentFiles.Should().BeEmpty("every configured proxy must be able to be shuttered on deployment");
+    }
+
     private static string ContentRootPath =>
         Path.GetDirectoryName(typeof(Program).Assembly.Location)
         ?? throw new InvalidOperationException("The ReverseProxy content root could not be found.");
