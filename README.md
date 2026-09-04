@@ -50,7 +50,8 @@ to kebab case. For example, `ManageRecyclingObligations` uses
 inserted inside the shared GOV.UK page shell. `Example_Service` would use
 `src/ReverseProxy/Shuttering/Pages/example-service.html`. A holding-page fragment is required only when its route is
 shuttered; startup fails if it is missing. This means the route ID, cluster ID, and public path are not duplicated in
-separate shuttering configuration.
+separate shuttering configuration. The unit tests also verify that every route in the shipped `appsettings.json` has
+its cluster-derived fragment, so turning shuttering on for an existing route does not fail at startup.
 
 The fragment controls the whole central body and can use GOV.UK Frontend classes, as in `cdp-app-shuttering`:
 
