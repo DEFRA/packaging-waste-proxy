@@ -7,16 +7,16 @@ namespace Defra.PackagingWasteProxy.ReverseProxy.Tests.Shuttering;
 public class ShutteringTests(ShutteredReverseProxyWebApplicationFactory factory)
     : IClassFixture<ShutteredReverseProxyWebApplicationFactory>
 {
-    [Fact]
-    public async Task RequestToShutteredPath_ShouldReturnHoldingPageWithConfiguredHtmlBody()
+    [Theory]
+    [InlineData("/manage-recycling-obligations")]
+    [InlineData("/manage-recycling-obligations/returns")]
+    [InlineData("/manage-recycling-obligations/assets/application.css")]
+    [InlineData("/manage-recycling-obligations/pages/a-nested-page.html")]
+    public async Task GetRequestToShutteredPathAndSuffix_ShouldReturnHoldingPageWithConfiguredHtmlBody(string path)
     {
         using var client = factory.CreateClient();
 
-        var response = await client.PostAsync(
-            "/manage-recycling-obligations/returns",
-            new StringContent("{}"),
-            TestContext.Current.CancellationToken
-        );
+        var response = await client.GetAsync(path, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
         response.Content.Headers.ContentType!.MediaType.Should().Be("text/html");
@@ -28,6 +28,20 @@ public class ShutteringTests(ShutteredReverseProxyWebApplicationFactory factory)
         content.Should().Contain("<h1 class=\"govuk-heading-l\">Sorry, the service is unavailable</h1>");
         content.Should().Contain("https://www.gov.uk/guidance/contact-defra");
         content.Should().Contain("/govuk-frontend.min.css");
+    }
+
+    [Fact]
+    public async Task PostRequestToShutteredPath_ShouldReturnHoldingPage()
+    {
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsync(
+            "/manage-recycling-obligations/returns",
+            new StringContent("{}"),
+            TestContext.Current.CancellationToken
+        );
+
+        response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
     }
 
     [Fact]

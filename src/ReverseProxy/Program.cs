@@ -5,6 +5,7 @@ using Defra.PackagingWasteProxy.ReverseProxy.Utils.Logging;
 using Defra.PackagingWasteProxy.ReverseProxy.Utils.Shuttering;
 using Elastic.CommonSchema.Serilog;
 using GovUk.Frontend.AspNetCore;
+using Microsoft.Extensions.Options;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration().WriteTo.Console(new EcsTextFormatter()).CreateBootstrapLogger();
@@ -43,7 +44,10 @@ try
 
     app.UseHeaderPropagation();
     app.UseGovUkFrontend();
-    app.UseShuttering();
+    app.MapShuttering(
+        app.Services.GetRequiredService<IOptions<ShutteringOptions>>().Value,
+        app.Services.GetRequiredService<ShutteringPageRenderer>()
+    );
     app.MapAggregateHealth();
     app.MapReverseProxy();
 
