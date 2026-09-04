@@ -2,7 +2,9 @@ using Defra.PackagingWasteProxy.ReverseProxy.Configuration;
 using Defra.PackagingWasteProxy.ReverseProxy.Utils;
 using Defra.PackagingWasteProxy.ReverseProxy.Utils.Health;
 using Defra.PackagingWasteProxy.ReverseProxy.Utils.Logging;
+using Defra.PackagingWasteProxy.ReverseProxy.Utils.Shuttering;
 using Elastic.CommonSchema.Serilog;
+using GovUk.Frontend.AspNetCore;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration().WriteTo.Console(new EcsTextFormatter()).CreateBootstrapLogger();
@@ -15,6 +17,12 @@ try
     builder.Services.AddCustomTrustStore();
     builder.ConfigureLoggingAndTracing();
     builder.Services.AddAggregateHealth(builder.Configuration);
+    builder.Services.AddGovUkFrontend(options =>
+        options.FrontendPackageHostingOptions =
+            FrontendPackageHostingOptions.HostAssets
+            | FrontendPackageHostingOptions.HostCompiledFiles
+            | FrontendPackageHostingOptions.RemoveSourceMapReferences
+    );
 
     var port = builder.Configuration["PORT"];
     if (int.TryParse(port, out var configuredPort))
@@ -24,11 +32,22 @@ try
 
     var reverseProxyConfiguration = builder.Configuration.GetSection("ReverseProxy");
     ReverseProxyConfigurationValidator.Validate(reverseProxyConfiguration);
+    var shutteredRoutes = ShutteringConfigurationValidator.Validate(
+        reverseProxyConfiguration,
+        builder.Environment.ContentRootPath
+    );
+
+    builder.Services.AddSingleton<ShutteringPageRenderer>();
     builder.Services.AddReverseProxy().LoadFromConfig(reverseProxyConfiguration);
 
     var app = builder.Build();
 
+    var pageRenderer = app.Services.GetRequiredService<ShutteringPageRenderer>();
+    var shutteredPages = shutteredRoutes.Select(pageRenderer.Load).ToArray();
+
     app.UseHeaderPropagation();
+    app.UseGovUkFrontend();
+    app.MapShuttering(shutteredPages);
     app.MapAggregateHealth();
     app.MapReverseProxy();
 

@@ -4,6 +4,7 @@ using AwesomeAssertions;
 
 namespace Defra.PackagingWasteProxy.ReverseProxy.Tests;
 
+[Collection(nameof(WebApplicationFactoryCollection))]
 public class HealthEndpointTests(ReverseProxyWebApplicationFactory factory)
     : IClassFixture<ReverseProxyWebApplicationFactory>
 {

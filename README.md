@@ -15,6 +15,65 @@ See the [architecture and follow-up review](docs/architecture-and-follow-up.md) 
 (which rejects every request), so deployments must configure it with the `Health__All__ApiKey` environment variable.
 `Health__All__DownstreamTimeoutMilliseconds` optionally overrides the five-second downstream timeout.
 
+## Shuttering a path
+
+The proxy can temporarily replace a configured YARP route with a locally served GOV.UK holding page. Every request
+that matches a shuttered route, including pages and assets below its public path, returns `503 Service Unavailable`,
+`text/html`, and `Cache-Control: no-store`; the request is not sent to YARP or its downstream service. There is no
+redirect. `/health` and `/health/all` cannot be shuttered, preserving the CDP health-check contract.
+
+Shuttering is configured on the YARP route itself, so its `Match:Path` remains the single source of truth for the
+public path. Set the route's `Metadata:Shuttered` value to `true` or `false`. The initial Manage Recycling Obligations
+route is disabled by default:
+
+```json
+{
+  "ReverseProxy": {
+    "Routes": {
+      "ManageRecyclingObligations": {
+        "ClusterId": "ManageRecyclingObligations",
+        "Match": {
+          "Path": "/manage-recycling-obligations/{**catch-all}"
+        },
+        "Metadata": {
+          "Shuttered": false
+        }
+      }
+    }
+  }
+}
+```
+
+The holding-page body comes from an HTML fragment whose filename is derived from the route's `ClusterId`, converted
+to kebab case. For example, `ManageRecyclingObligations` uses
+[`manage-recycling-obligations.html`](src/ReverseProxy/Shuttering/Pages/manage-recycling-obligations.html), which is
+inserted inside the shared GOV.UK page shell. `Example_Service` would use
+`src/ReverseProxy/Shuttering/Pages/example-service.html`. A holding-page fragment is required only when its route is
+shuttered; startup fails if it is missing. This means the route ID, cluster ID, and public path are not duplicated in
+separate shuttering configuration. The unit tests also verify that every route in the shipped `appsettings.json` has
+its cluster-derived fragment, so turning shuttering on for an existing route does not fail at startup. Fragments are
+loaded and rendered when the host starts, so changing holding-page content requires a deployment or restart.
+
+The fragment controls the whole central body and can use GOV.UK Frontend classes, as in `cdp-app-shuttering`:
+
+```html
+<h1 class="govuk-heading-l">Sorry, the service is unavailable</h1>
+
+<div class="govuk-body">
+  <p>
+    <a class="govuk-link" href="https://www.gov.uk/guidance/contact-defra">Contact the Defra Helpline</a> for
+    further assistance.
+  </p>
+</div>
+```
+
+The existing route can be turned on with the deployment environment variable below; it remains off unless this is set
+to `true`.
+
+```text
+ReverseProxy__Routes__ManageRecyclingObligations__Metadata__Shuttered=true
+```
+
 ## Permitted-route design
 
 The proxy is a permit list: a request may be sent only to a downstream service with an explicitly configured
@@ -56,6 +115,9 @@ The agreed public prefix is `/manage-recycling-obligations`. The YARP configurat
         "ClusterId": "ManageRecyclingObligations",
         "Match": {
           "Path": "/manage-recycling-obligations/{**catch-all}"
+        },
+        "Metadata": {
+          "Shuttered": false
         },
         "Transforms": [
           {
