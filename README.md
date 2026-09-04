@@ -168,13 +168,15 @@ docker compose down -v --remove-orphans
 Run the startup-validation unit tests without Docker:
 
 ```sh
-dotnet test tests/ReverseProxy.Tests/ReverseProxy.Tests.csproj --no-restore
+dotnet build tests/ReverseProxy.Tests/ReverseProxy.Tests.csproj --no-restore
+dotnet test --test-modules tests/ReverseProxy.Tests/bin/Debug/net10.0/ReverseProxy.Tests.dll --no-build
 ```
 
 Start the Compose environment before running the routing integration tests:
 
 ```sh
-dotnet test tests/ReverseProxy.IntegrationTests/ReverseProxy.IntegrationTests.csproj --no-restore
+dotnet build tests/ReverseProxy.IntegrationTests/ReverseProxy.IntegrationTests.csproj --no-restore
+dotnet test --test-modules tests/ReverseProxy.IntegrationTests/bin/Debug/net10.0/ReverseProxy.IntegrationTests.dll --no-build
 ```
 
 ## Code quality
