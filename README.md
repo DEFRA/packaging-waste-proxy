@@ -15,6 +15,56 @@ See the [architecture and follow-up review](docs/architecture-and-follow-up.md) 
 (which rejects every request), so deployments must configure it with the `Health__All__ApiKey` environment variable.
 `Health__All__DownstreamTimeoutMilliseconds` optionally overrides the five-second downstream timeout.
 
+## Shuttering a path
+
+The proxy can temporarily replace a public path with a locally served GOV.UK holding page. A shuttered path and every
+path beneath it return `503 Service Unavailable`, `text/html`, and `Cache-Control: no-store`; the request is not sent
+to YARP or its downstream service. The most specific shuttered path wins. `/health` and `/health/all` cannot be
+shuttered, preserving the CDP health-check contract.
+
+Each page is a `Shuttering:Paths` entry. Its only setting is whether its path is shuttered. The initial Manage
+Recycling Obligations entry is disabled by default:
+
+```json
+{
+  "Shuttering": {
+    "Paths": [
+      {
+        "Path": "/manage-recycling-obligations",
+        "Shuttered": false
+      }
+    ]
+  }
+}
+```
+
+The body comes from an HTML fragment whose filename is derived from the configured path. For example,
+`/manage-recycling-obligations` uses
+[`manage-recycling-obligations.html`](src/ReverseProxy/Shuttering/Pages/manage-recycling-obligations.html), which is
+inserted inside the shared GOV.UK page shell. Nested paths retain their directories, so `/example/service` uses
+`src/ReverseProxy/Shuttering/Pages/example/service.html`. The root path uses `index.html`. Every configured path must
+have its corresponding file when the proxy starts, including when it is not shuttered.
+
+The fragment controls the whole central body and can use GOV.UK Frontend classes, as in `cdp-app-shuttering`:
+
+```html
+<h1 class="govuk-heading-l">Sorry, the service is unavailable</h1>
+
+<div class="govuk-body">
+  <p>
+    <a class="govuk-link" href="https://www.gov.uk/guidance/contact-defra">Contact the Defra Helpline</a> for
+    further assistance.
+  </p>
+</div>
+```
+
+The existing path can be turned on with the deployment environment variable below; it remains off unless this is set
+to `true`.
+
+```text
+Shuttering__Paths__0__Shuttered=true
+```
+
 ## Permitted-route design
 
 The proxy is a permit list: a request may be sent only to a downstream service with an explicitly configured
