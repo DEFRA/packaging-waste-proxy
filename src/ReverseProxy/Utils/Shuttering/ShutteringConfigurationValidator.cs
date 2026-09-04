@@ -71,7 +71,7 @@ internal static class ShutteringConfigurationValidator
         );
     }
 
-    private static void ValidateCluster(ShutteredRoute route, ISet<string> clusters)
+    private static void ValidateCluster(ShutteredRoute route, HashSet<string> clusters)
     {
         if (
             string.IsNullOrWhiteSpace(route.ClusterId)
@@ -102,7 +102,7 @@ internal static class ShutteringConfigurationValidator
             || matchPath.Contains('?', StringComparison.Ordinal)
             || matchPath.Contains('#', StringComparison.Ordinal)
             || matchPath.Contains('\\')
-            || (matchPath.Length > 1 && matchPath.EndsWith("/", StringComparison.Ordinal))
+            || (matchPath.Length > 1 && matchPath.EndsWith('/'))
             || hasUnsafeSegment
             || isHealthPath
         )
