@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Encodings.Web;
 
 namespace Defra.PackagingWasteProxy.ReverseProxy.Utils.Shuttering;
@@ -6,21 +7,27 @@ internal sealed class ShutteringPageRenderer(IWebHostEnvironment environment)
 {
     private const string PageTitle = "Service Unavailable";
 
-    public async Task Write(HttpContext context, ShutteredRoute route)
+    public ShutteredPage Load(ShutteredRoute route)
+    {
+        var contentPath = ShutteringPageContentFiles.GetPath(environment.ContentRootPath, route.ClusterId);
+        var content = File.ReadAllText(contentPath);
+
+        return new ShutteredPage(route.RouteId, route.MatchPath, Encoding.UTF8.GetBytes(CreatePage(content)));
+    }
+
+    public static Task Write(HttpContext context, ShutteredPage page)
     {
         context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
         context.Response.ContentType = "text/html; charset=utf-8";
         context.Response.Headers.CacheControl = "no-store";
+        context.Response.ContentLength = page.Content.Length;
 
         if (HttpMethods.IsHead(context.Request.Method))
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        var contentPath = ShutteringPageContentFiles.GetPath(environment.ContentRootPath, route.ClusterId);
-        var content = await File.ReadAllTextAsync(contentPath, context.RequestAborted);
-
-        await context.Response.WriteAsync(CreatePage(content), context.RequestAborted);
+        return context.Response.Body.WriteAsync(page.Content, context.RequestAborted).AsTask();
     }
 
     private static string CreatePage(string content)

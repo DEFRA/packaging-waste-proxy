@@ -42,9 +42,12 @@ try
 
     var app = builder.Build();
 
+    var pageRenderer = app.Services.GetRequiredService<ShutteringPageRenderer>();
+    var shutteredPages = shutteredRoutes.Select(pageRenderer.Load).ToArray();
+
     app.UseHeaderPropagation();
     app.UseGovUkFrontend();
-    app.MapShuttering(shutteredRoutes, app.Services.GetRequiredService<ShutteringPageRenderer>());
+    app.MapShuttering(shutteredPages);
     app.MapAggregateHealth();
     app.MapReverseProxy();
 
