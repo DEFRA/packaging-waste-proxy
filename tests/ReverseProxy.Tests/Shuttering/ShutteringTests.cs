@@ -14,6 +14,7 @@ public class ShutteringTests(ShutteredReverseProxyWebApplicationFactory factory)
     [InlineData("/manage-recycling-obligations/pages/a-nested-page.html")]
     public async Task GetRequestToShutteredPathAndSuffix_ShouldReturnHoldingPageWithConfiguredHtmlBody(string path)
     {
+        factory.ShutteringMetrics.Reset();
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync(path, TestContext.Current.CancellationToken);
@@ -28,6 +29,7 @@ public class ShutteringTests(ShutteredReverseProxyWebApplicationFactory factory)
         content.Should().Contain("<h1 class=\"govuk-heading-l\">Sorry, the service is unavailable</h1>");
         content.Should().Contain("https://www.gov.uk/guidance/contact-defra");
         content.Should().Contain("/govuk-frontend.min.css");
+        factory.ShutteringMetrics.RouteIds.Should().ContainSingle().Which.Should().Be("ManageRecyclingObligations");
     }
 
     [Fact]

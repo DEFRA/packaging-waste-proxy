@@ -2,6 +2,7 @@ using Defra.PackagingWasteProxy.ReverseProxy.Configuration;
 using Defra.PackagingWasteProxy.ReverseProxy.Utils;
 using Defra.PackagingWasteProxy.ReverseProxy.Utils.Health;
 using Defra.PackagingWasteProxy.ReverseProxy.Utils.Logging;
+using Defra.PackagingWasteProxy.ReverseProxy.Utils.Metrics;
 using Defra.PackagingWasteProxy.ReverseProxy.Utils.Shuttering;
 using Elastic.CommonSchema.Serilog;
 using GovUk.Frontend.AspNetCore;
@@ -38,6 +39,7 @@ try
     );
 
     builder.Services.AddSingleton<ShutteringPageRenderer>();
+    builder.Services.AddShutteringMetrics();
     builder.Services.AddReverseProxy().LoadFromConfig(reverseProxyConfiguration);
 
     var app = builder.Build();
@@ -47,6 +49,7 @@ try
 
     app.UseHeaderPropagation();
     app.UseGovUkFrontend();
+    app.UseCloudWatchMetrics();
     app.MapShuttering(shutteredPages);
     app.MapAggregateHealth();
     app.MapReverseProxy();

@@ -74,6 +74,19 @@ to `true`.
 ReverseProxy__Routes__ManageRecyclingObligations__Metadata__Shuttered=true
 ```
 
+### Shuttering observability
+
+Every response served from a shuttered route emits the CloudWatch Embedded Metric Format counter
+`ShutteredResponse`, tagged with its YARP route ID. Configure the deployment with the following setting so the
+operational overview can display the counter:
+
+```text
+AWS_EMF_NAMESPACE=packaging-waste-proxy
+```
+
+Metrics are enabled by default in deployed environments. Local development uses a local namespace, while the test
+and Compose environments disable EMF output.
+
 ## Permitted-route design
 
 The proxy is a permit list: a request may be sent only to a downstream service with an explicitly configured

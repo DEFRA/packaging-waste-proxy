@@ -12,6 +12,7 @@ services:
       - ./tests/Shuttering/Pages/shuttered-proxy.html:/app/Shuttering/Pages/shuttered-proxy.html:ro
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      AWS_EMF_ENABLED: false
       PORT: 8085
       Health__All__ApiKey: ApiKey
       ReverseProxy__Clusters__ManageRecyclingObligations__Destinations__Primary__Address: http://downstream:8080/
