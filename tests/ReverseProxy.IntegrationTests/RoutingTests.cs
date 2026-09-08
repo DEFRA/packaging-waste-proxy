@@ -54,6 +54,26 @@ public class RoutingTests : IntegrationTestBase
     }
 
     [Fact]
+    public async Task ShutteredProxy_ShouldReturnItsMountedHoldingPageInsteadOfProxying()
+    {
+        using var client = CreateClient();
+
+        var response = await client.GetAsync(
+            "/shuttered-proxy/pages/a-nested-page.html",
+            TestContext.Current.CancellationToken
+        );
+
+        response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+        response.Headers.Location.Should().BeNull();
+        response.Headers.CacheControl!.ToString().Should().Be("no-store");
+
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        content.Should().Contain("This path is shuttered for integration testing");
+        content.Should().Contain("not part of the proxy image");
+    }
+
+    [Fact]
     public async Task UnpermittedPath_ShouldReturnNotFound()
     {
         using var client = CreateClient();
