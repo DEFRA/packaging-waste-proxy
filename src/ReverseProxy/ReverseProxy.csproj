@@ -10,7 +10,7 @@
     <PackageReference Include="Amazon.CloudWatch.EMF" Version="2.2.0" />
     <PackageReference Include="Elastic.CommonSchema.Serilog" Version="9.0.0" />
     <PackageReference Include="Elastic.Serilog.Enrichers.Web" Version="9.0.0" />
-    <PackageReference Include="GovUk.Frontend.AspNetCore" Version="4.4.0" />
+    <PackageReference Include="GovUk.Frontend.AspNetCore" Version="3.4.3" />
     <PackageReference Include="Microsoft.AspNetCore.HeaderPropagation" Version="10.0.9" />
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageReference Include="Serilog.Enrichers.ClientInfo" Version="2.9.0" />
@@ -26,6 +26,10 @@
       <CopyToPublishDirectory>Never</CopyToPublishDirectory>
     </Content>
     <None Update="Shuttering/Pages/**/*.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+    <None Update="Shuttering/Layout.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
