@@ -50,14 +50,33 @@ public class NotFoundTests(ReverseProxyWebApplicationFactory factory) : IClassFi
         response.Content.Headers.ContentType!.MediaType.Should().Be("text/html");
     }
 
+    [Fact]
+    public async Task HeadRequestAcceptingHtmlToUnconfiguredPath_ShouldReturnPageNotFoundHeaders()
+    {
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Head, "/not-permitted");
+        request.Headers.Accept.ParseAdd("text/html");
+
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("text/html");
+        response.Headers.CacheControl!.ToString().Should().Be("no-store");
+    }
+
     [Theory]
     [InlineData("/not-permitted/application.css", "text/css")]
     [InlineData("/not-permitted/font.woff2", "*/*")]
-    public async Task AssetRequestToUnconfiguredPath_ShouldReturnEmptyNotFound(string path, string accept)
+    [InlineData("/not-permitted/no-accept-header", null)]
+    [InlineData("/not-permitted/html-not-accepted", "text/html;q=0")]
+    public async Task AssetRequestToUnconfiguredPath_ShouldReturnEmptyNotFound(string path, string? accept)
     {
         using var client = factory.CreateClient();
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
-        request.Headers.Accept.ParseAdd(accept);
+        if (accept is not null)
+        {
+            request.Headers.Accept.ParseAdd(accept);
+        }
 
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
