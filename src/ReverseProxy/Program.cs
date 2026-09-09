@@ -3,6 +3,7 @@ using Defra.PackagingWasteProxy.ReverseProxy.Utils;
 using Defra.PackagingWasteProxy.ReverseProxy.Utils.Health;
 using Defra.PackagingWasteProxy.ReverseProxy.Utils.Logging;
 using Defra.PackagingWasteProxy.ReverseProxy.Utils.Metrics;
+using Defra.PackagingWasteProxy.ReverseProxy.Utils.Pages;
 using Defra.PackagingWasteProxy.ReverseProxy.Utils.Shuttering;
 using Elastic.CommonSchema.Serilog;
 using GovUk.Frontend.AspNetCore;
@@ -38,14 +39,26 @@ try
         builder.Environment.ContentRootPath
     );
 
-    builder.Services.AddSingleton<ShutteringPageRenderer>();
+    builder.Services.AddSingleton<PageRenderer>();
     builder.Services.AddShutteringMetrics();
     builder.Services.AddReverseProxy().LoadFromConfig(reverseProxyConfiguration);
 
     var app = builder.Build();
 
-    var pageRenderer = app.Services.GetRequiredService<ShutteringPageRenderer>();
-    var shutteredPages = shutteredRoutes.Select(pageRenderer.Load).ToArray();
+    var pageRenderer = app.Services.GetRequiredService<PageRenderer>();
+    var shutteredPages = shutteredRoutes
+        .Select(route => new ShutteredPage(
+            route.RouteId,
+            route.MatchPath,
+            pageRenderer.Load(
+                "Service Unavailable",
+                ShutteringPageContentFiles.GetPath(app.Environment.ContentRootPath, route.ClusterId)
+            )
+        ))
+        .ToArray();
+    var notFoundPage = new NotFoundPage(
+        pageRenderer.Load("Page not found", Path.Combine(app.Environment.ContentRootPath, "Pages", "not-found.html"))
+    );
 
     app.UseHeaderPropagation();
     app.UseGovUkFrontend();
@@ -53,6 +66,7 @@ try
     app.MapShuttering(shutteredPages);
     app.MapAggregateHealth();
     app.MapReverseProxy();
+    app.MapFallback(notFoundPage.Write).WithDisplayName("Not found");
 
     await app.RunAsync();
 }

@@ -54,9 +54,9 @@ separate shuttering configuration. The unit tests also verify that every route i
 its cluster-derived fragment, so turning shuttering on for an existing route does not fail at startup. Fragments are
 loaded and rendered when the host starts, so changing holding-page content requires a deployment or restart.
 
-The shared shell in [`Layout.html`](src/ReverseProxy/Shuttering/Layout.html) matches the GOV.UK Frontend 5.13 layout
+The shared shell in [`Layout.html`](src/ReverseProxy/Pages/Layout.html) matches the GOV.UK Frontend 5.13 layout
 used by `cdp-app-shuttering`, including the branded header, full footer, Open Government Licence statement, and Crown
-copyright.
+copyright. It is also used for page-not-found responses.
 
 The fragment controls the whole central body and can use GOV.UK Frontend classes, as in `cdp-app-shuttering`:
 
@@ -195,7 +195,8 @@ and protocol headers from the request it receives, and this route sets the prefi
 No `Methods` constraint is configured, so the permitted path accepts every HTTP method, including `POST`. The
 `{**catch-all}` path segment permits every suffix beneath `/manage-recycling-obligations`; use additional exact
 routes with `Methods` restrictions if individual downstream operations need a narrower allow-list. Paths that do not
-match a permitted route return `404` from the proxy without reaching a downstream service.
+match a permitted route return a local `404 Not Found` response without reaching a downstream service. Requests that
+explicitly accept `text/html` receive the GOV.UK page; asset and API requests receive an empty `404` response instead.
 
 ## Run locally
 
@@ -222,11 +223,12 @@ the public prefix before forwarding and supplied it in `X-Forwarded-Prefix`.
 
 ```sh
 curl --fail --request POST 'http://localhost:8085/manage-recycling-obligations/returns?year=2026'
-curl --include http://localhost:8085/not-permitted
+curl --include --header 'Accept: text/html' http://localhost:8085/not-permitted
 ```
 
-The first command returns the WireMock response below. The second returns `404 Not Found`, even though WireMock has a
-deliberate sentry response for `/not-permitted`; this proves the proxy did not forward the unpermitted path.
+The first command returns the WireMock response below. The second returns the local `404 Not Found` page, even though
+WireMock has a deliberate sentry response for `/not-permitted`; this proves the proxy did not forward the unpermitted
+path.
 
 ```json
 {

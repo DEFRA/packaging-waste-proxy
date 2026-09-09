@@ -74,13 +74,23 @@ public class RoutingTests : IntegrationTestBase
     }
 
     [Fact]
-    public async Task UnpermittedPath_ShouldReturnNotFound()
+    public async Task UnpermittedPath_ShouldReturnPageNotFound()
     {
         using var client = CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/not-permitted");
+        request.Headers.Accept.ParseAdd("text/html");
 
-        var response = await client.GetAsync("/not-permitted", TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("text/html");
+        response.Headers.CacheControl!.ToString().Should().Be("no-store");
+
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        content.Should().Contain("<title>Page not found</title>");
+        content.Should().Contain("<h1 class=\"govuk-heading-l\">Page not found</h1>");
+        content.Should().Contain("<div class=\"govuk-body\">");
     }
 
     private sealed record DownstreamRequest(string Method, string? Path, string? Query, string? CorrelationId);
