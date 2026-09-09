@@ -26,8 +26,10 @@ public class ShutteringTests(ShutteredReverseProxyWebApplicationFactory factory)
         var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         content.Should().Contain("<title>Service Unavailable</title>");
-        content.Should().Contain("<h1 class=\"govuk-heading-l\">Sorry, the service is unavailable</h1>");
-        content.Should().Contain("https://www.gov.uk/guidance/contact-defra");
+        content.Should().Contain("<h1 class=\"govuk-heading-l\">Sorry, the service is temporarily unavailable</h1>");
+        content
+            .Should()
+            .Contain("https://www.gov.uk/guidance/extended-producer-responsibility-for-packaging-contact-and-support");
         content.Should().Contain("/govuk-frontend.min.css");
         content.Should().Contain("class=\"govuk-header__logotype\"");
         content.Should().Contain("class=\"govuk-footer__crown\"");
