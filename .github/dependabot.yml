@@ -16,6 +16,7 @@ updates:
         patterns:
           - 'AwesomeAssertions'
           - 'Microsoft.NET.Test.Sdk'
+          - 'Microsoft.Testing.Extensions.CodeCoverage'
           - 'xunit*'
 
     # Schedule run every Monday, local time

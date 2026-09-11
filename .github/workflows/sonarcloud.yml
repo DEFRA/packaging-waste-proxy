@@ -41,23 +41,11 @@ jobs:
           path: ./.sonar/scanner
           key: ${{ runner.os }}-sonar-scanner
           restore-keys: ${{ runner.os }}-sonar-scanner
-      - name: Cache .NET coverage tool
-        id: cache-sonar-coverage
-        uses: actions/cache@v6
-        with:
-          path: ./.sonar/coverage
-          key: ${{ runner.os }}-sonar-coverage
-          restore-keys: ${{ runner.os }}-sonar-coverage
       - name: Install SonarCloud scanner
         if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
         run: |
           mkdir -p ./.sonar/scanner
           dotnet tool update dotnet-sonarscanner --tool-path ./.sonar/scanner
-      - name: Install .NET coverage tool
-        if: steps.cache-sonar-coverage.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p ./.sonar/coverage
-          dotnet tool update dotnet-coverage --tool-path ./.sonar/coverage
       - name: Begin SonarCloud analysis
         if: github.actor != 'dependabot[bot]'
         env:
@@ -74,8 +62,8 @@ jobs:
       - name: Collect test coverage
         if: github.actor != 'dependabot[bot]'
         run: |
-          ./.sonar/coverage/dotnet-coverage collect "dotnet test tests/ReverseProxy.Tests/ReverseProxy.Tests.csproj --no-build" -f xml -o coverage.ReverseProxy.Tests.xml
-          ./.sonar/coverage/dotnet-coverage collect "dotnet test tests/ReverseProxy.IntegrationTests/ReverseProxy.IntegrationTests.csproj --no-build" -f xml -o coverage.ReverseProxy.IntegrationTests.xml
+          dotnet test --test-modules tests/ReverseProxy.Tests/bin/Debug/net10.0/ReverseProxy.Tests.dll --no-build --coverage --coverage-output-format xml --coverage-output coverage.ReverseProxy.Tests.xml
+          dotnet test --test-modules tests/ReverseProxy.IntegrationTests/bin/Debug/net10.0/ReverseProxy.IntegrationTests.dll --no-build --coverage --coverage-output-format xml --coverage-output coverage.ReverseProxy.IntegrationTests.xml
       - name: End SonarCloud analysis
         if: github.actor != 'dependabot[bot]'
         env:
