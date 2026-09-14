@@ -262,6 +262,15 @@ dotnet test --test-modules tests/ReverseProxy.IntegrationTests/bin/Debug/net10.0
 
 ## Code quality
 
-SonarCloud analysis runs after the validation, publish, and hot-fix jobs. It uses the repository `SONAR_TOKEN` secret
+SonarCloud analysis runs alongside the validation, publish, and hot-fix jobs. It uses the repository `SONAR_TOKEN` secret
 and reports coverage from both the unit and routing integration test projects to the
 [Packaging Waste Proxy project](https://sonarcloud.io/project/overview?id=DEFRA_packaging-waste-proxy).
+
+## Journey tests
+
+Pull requests run the shared Waste Obligations journey action with the proxy's head SHA, using a matching
+journey-test branch or falling back to `main`. The journey-tests repository owns the Compose stack and routes
+browser traffic through `/manage-recycling-obligations/`.
+
+This repository needs the [shared journey-test secrets](https://github.com/DEFRA/waste-obligations-journey-tests#github-actions-secrets).
+The companion action change must be pushed before this workflow runs.

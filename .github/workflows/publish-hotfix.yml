@@ -54,7 +54,6 @@ jobs:
   sonarcloud-scan:
     name: SonarCloud scan
     uses: ./.github/workflows/sonarcloud.yml
-    needs: build-and-publish-hotfix
     permissions:
       contents: read
       pull-requests: write
