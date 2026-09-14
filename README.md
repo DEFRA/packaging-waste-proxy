@@ -268,6 +268,8 @@ and reports coverage from both the unit and routing integration test projects to
 
 ## Journey tests
 
+For repository-secret setup, see [Journey tests in Confluence](https://eaflood.atlassian.net/wiki/spaces/EDIA/pages/6597640835/Journey+tests).
+
 Pull requests run the shared Waste Obligations journey action with the proxy's head SHA, using a matching
 journey-test branch or falling back to `main`. The journey-tests repository owns the Compose stack and routes
 browser traffic through `/manage-recycling-obligations/`.
