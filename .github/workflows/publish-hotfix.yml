@@ -8,22 +8,18 @@ concurrency:
   cancel-in-progress: false
   queue: max
 
-env:
-  AWS_REGION: eu-west-2
-  AWS_ACCOUNT_ID: '094954420758'
+permissions:
+  contents: read
 
 jobs:
   build-and-publish-hotfix:
     name: Build and publish packaging-waste-proxy hot fix
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: write
-      pull-requests: write
     steps:
       - name: Check out code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           fetch-depth: 0
       - name: Set up .NET 10
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
@@ -47,6 +43,22 @@ jobs:
       - name: Stop routing test environment
         if: always()
         run: docker compose down -v --remove-orphans
+
+  publish:
+    name: Publish hot fix
+    needs: build-and-publish-hotfix
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Create the release tag.
+      id-token: write # Authenticate to AWS using OIDC.
+    env:
+      AWS_REGION: eu-west-2
+      AWS_ACCOUNT_ID: '094954420758'
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
       - name: Publish hot fix image
         uses: DEFRA/cdp-build-action/build-hotfix@dfb527d1bca7591fbbfd32ac007557745e888cf2 # main
         with:
@@ -56,6 +68,6 @@ jobs:
     uses: ./.github/workflows/sonarcloud.yml
     permissions:
       contents: read
-      pull-requests: write
+      pull-requests: read
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
