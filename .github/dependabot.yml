@@ -7,17 +7,42 @@ updates:
     directory: /
     open-pull-requests-limit: 10
 
-    # Group the proxy and test dependencies into shared PRs.
     groups:
       proxy:
+        applies-to: version-updates
         patterns:
           - 'Yarp.ReverseProxy'
+        update-types:
+          - 'minor'
+          - 'patch'
       testing:
+        applies-to: version-updates
         patterns:
           - 'AwesomeAssertions'
           - 'Microsoft.NET.Test.Sdk'
           - 'Microsoft.Testing.Extensions.CodeCoverage'
+          - 'Microsoft.AspNetCore.Mvc.Testing'
           - 'xunit*'
+        update-types:
+          - 'minor'
+          - 'patch'
+      nuget-observability:
+        applies-to: version-updates
+        patterns:
+          - 'Amazon.CloudWatch.EMF'
+          - 'Elastic.*'
+          - 'Serilog.*'
+        update-types:
+          - 'minor'
+          - 'patch'
+      nuget-code-analysis:
+        applies-to: version-updates
+        patterns:
+          - 'SonarAnalyzer.*'
+          - 'csharpier'
+        update-types:
+          - 'minor'
+          - 'patch'
 
     # Schedule run every Monday, local time
     schedule:
@@ -30,6 +55,24 @@ updates:
     directory: /
 
     # Schedule run every Monday, local time
+    schedule:
+      interval: weekly
+      time: '10:30'
+      timezone: 'Europe/London'
+    groups:
+      github-actions:
+        patterns:
+          - '*'
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      time: '10:30'
+      timezone: 'Europe/London'
+
+  - package-ecosystem: docker-compose
+    directory: /
     schedule:
       interval: weekly
       time: '10:30'
