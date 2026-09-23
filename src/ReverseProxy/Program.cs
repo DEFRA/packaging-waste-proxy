@@ -41,10 +41,7 @@ try
 
     builder.Services.AddSingleton<PageRenderer>();
     builder.Services.AddShutteringMetrics();
-    builder
-        .Services.AddReverseProxy()
-        .LoadFromConfig(reverseProxyConfiguration)
-        .AddDnsDestinationResolver(options => options.RefreshPeriod = TimeSpan.FromSeconds(60));
+    builder.Services.AddReverseProxy().LoadFromConfig(reverseProxyConfiguration);
 
     var app = builder.Build();
 
