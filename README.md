@@ -192,6 +192,12 @@ and protocol headers from the request it receives, and this route sets the prefi
 `/manage-recycling-obligations`. Ingress must enforce the expected host name because YARP derives
 `X-Forwarded-Host` from the incoming `Host` header.
 
+### DNS destination refresh
+
+YARP resolves the configured downstream host names with its DNS destination resolver. Resolved destinations are
+refreshed every 60 seconds, matching the confirmed CDP DNS TTL. This allows hosts that remain running during a
+downstream rollout to discover new destination IP addresses without restarting the proxy.
+
 No `Methods` constraint is configured, so the permitted path accepts every HTTP method, including `POST`. The
 `{**catch-all}` path segment permits every suffix beneath `/manage-recycling-obligations`; use additional exact
 routes with `Methods` restrictions if individual downstream operations need a narrower allow-list. Paths that do not
