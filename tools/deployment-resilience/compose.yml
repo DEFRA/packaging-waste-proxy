@@ -1,0 +1,14 @@
+services:
+  probe:
+    image: grafana/k6:2.3.0
+    user: "${HARNESS_UID:-0}:${HARNESS_GID:-0}"
+    env_file: .env
+    volumes:
+      - ./probe.js:/work/probe.js:ro
+      - ${RESULTS_DIR:?Set RESULTS_DIR to a fresh output directory}:/results
+    command:
+      - run
+      - --log-format=raw
+      - --console-output=/results/requests.jsonl
+      - --summary-export=/results/summary.json
+      - /work/probe.js
