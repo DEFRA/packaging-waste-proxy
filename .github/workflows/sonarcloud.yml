@@ -54,7 +54,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          ./.sonar/scanner/dotnet-sonarscanner begin /k:"DEFRA_packaging-waste-proxy" /o:"defra" /d:sonar.token="$SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.vscoveragexml.reportsPaths="coverage*.xml"
+          ./.sonar/scanner/dotnet-sonarscanner begin /k:"DEFRA_packaging-waste-proxy" /o:"defra" /d:sonar.token="$SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.vscoveragexml.reportsPaths="coverage*.xml" /d:sonar.exclusions="tools/deployment-resilience/**"
       - name: Build for analysis
         if: github.actor != 'dependabot[bot]'
         run: dotnet build packaging-waste-proxy.slnx --no-incremental --warnaserror
