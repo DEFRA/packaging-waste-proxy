@@ -20,6 +20,7 @@ services:
       ReverseProxy__Routes__ShutteredProxy__Match__Path: "/shuttered-proxy/{**catch-all}"
       ReverseProxy__Routes__ShutteredProxy__Metadata__Shuttered: true
       ReverseProxy__Clusters__ShutteredProxy__Destinations__Primary__Address: http://downstream:8080/
+      ReverseProxy__Clusters__WasteSubmitRegPackaging__Destinations__Primary__Address: http://downstream:8080/
     depends_on:
       downstream:
         condition: service_healthy
