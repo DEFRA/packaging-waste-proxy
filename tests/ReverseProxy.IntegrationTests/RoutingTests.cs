@@ -54,6 +54,50 @@ public class RoutingTests : IntegrationTestBase
     }
 
     [Fact]
+    public async Task WasteSubmitRegPackaging_ShouldRemovePublicPrefixAndForwardIt()
+    {
+        using var client = CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/waste-submit-reg-packaging",
+            new { reference = "example" },
+            TestContext.Current.CancellationToken
+        );
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var downstreamRequest = await response.Content.ReadFromJsonAsync<DownstreamRequest>(
+            TestContext.Current.CancellationToken
+        );
+
+        downstreamRequest.Should().NotBeNull();
+        downstreamRequest.Method.Should().Be(HttpMethod.Post.Method);
+        downstreamRequest.Path.Should().Be("/");
+    }
+
+    [Fact]
+    public async Task WasteSubmitRegPackaging_WhenTraceHeaderReceived_ShouldForwardTraceHeader()
+    {
+        using var client = CreateClient();
+        client.DefaultRequestHeaders.Add(TraceHeaderName, TraceId);
+
+        var response = await client.PostAsJsonAsync(
+            "/waste-submit-reg-packaging",
+            new { reference = "example" },
+            TestContext.Current.CancellationToken
+        );
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var downstreamRequest = await response.Content.ReadFromJsonAsync<DownstreamRequest>(
+            TestContext.Current.CancellationToken
+        );
+
+        downstreamRequest.Should().NotBeNull();
+        downstreamRequest.CorrelationId.Should().Be(TraceId);
+    }
+
+    [Fact]
     public async Task ShutteredProxy_ShouldReturnItsMountedHoldingPageInsteadOfProxying()
     {
         using var client = CreateClient();
