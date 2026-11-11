@@ -59,7 +59,7 @@ public class RoutingTests : IntegrationTestBase
         using var client = CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/waste-submit-reg-packaging",
+            "/submit",
             new { reference = "example" },
             TestContext.Current.CancellationToken
         );
@@ -82,7 +82,7 @@ public class RoutingTests : IntegrationTestBase
         client.DefaultRequestHeaders.Add(TraceHeaderName, TraceId);
 
         var response = await client.PostAsJsonAsync(
-            "/waste-submit-reg-packaging/trace",
+            "/submit/trace",
             new { reference = "example" },
             TestContext.Current.CancellationToken
         );

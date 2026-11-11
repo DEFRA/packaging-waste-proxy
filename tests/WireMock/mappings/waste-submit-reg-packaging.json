@@ -4,7 +4,7 @@
     "urlPath": "/",
     "headers": {
       "X-Forwarded-Prefix": {
-        "equalTo": "/waste-submit-reg-packaging"
+        "equalTo": "/submit"
       }
     }
   },
