@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <RootNamespace>$(RootNamespace).ReverseProxy.Tests</RootNamespace>
     <TargetFramework>net10.0</TargetFramework>
@@ -17,6 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="../../src/ReverseProxy/ReverseProxy.csproj" />
   </ItemGroup>
 </Project>
