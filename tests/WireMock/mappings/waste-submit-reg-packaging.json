@@ -4,7 +4,7 @@
     "urlPath": "/",
     "headers": {
       "X-Forwarded-Prefix": {
-        "equalTo": "/submit"
+        "equalTo": "/submit-packaging"
       }
     }
   },
