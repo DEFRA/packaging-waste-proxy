@@ -1,0 +1,21 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/",
+    "headers": {
+      "X-Forwarded-Prefix": {
+        "equalTo": "/submit-packaging"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "method": "POST",
+      "path": "/"
+    }
+  }
+}
